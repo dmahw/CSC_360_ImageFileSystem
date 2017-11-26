@@ -2,10 +2,10 @@
 default: diskinfo disklist
 
 diskinfo: diskinfo.c
-	gcc diskinfo.c common.c -o diskinfo
+	gcc diskinfo.c -o diskinfo
 
 disklist: disklist.c
-	gcc disklist.c common.c -o disklist
+	gcc disklist.c -o disklist
 
 .PHONY clean:
 clean:
