@@ -51,7 +51,7 @@ int listRootDir(char *bytes) {
         day = (bytes[i + 16] & 0b00011111);
 
         hour = ((bytes[i + 15] & 0b11111000) >> 3);
-        minute = ((bytes[i + 15] & 0b00000111) << 3) | ((bytes[i + 14] & 0b11100000) >> 5);
+        minute = ((bytes[i + 15] & 0b00000111) << 3) + ((bytes[i + 14] & 0b11100000) >> 5);
         
         printf("%c %10d %20s %02d/%02d/%d %02d:%02d\n", type, fileSize, fileName, month, day, year, hour, minute);
     }   
