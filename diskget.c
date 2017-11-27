@@ -31,15 +31,11 @@ int copyFile(char *fileName, char *bytes) {
         for(j = 0; j < 8; j++) {
             if (bytes[i + j] == ' ') break;
             rootFile[j] = bytes[i + j];
-            printf("%s\n", rootFile);
-            fflush(stdout);
         }
         for(j = 0; j < 3; j++) {
             if (bytes[i + j + 8] == ' ') break;
             if (j == 0) strcat(rootFile, ".");
             fileExt[j] = bytes[i + j + 8];
-            printf("%s\n", fileExt);
-            fflush(stdout);
         }
         strcat(rootFile, fileExt);
 
@@ -73,8 +69,6 @@ int copyFile(char *fileName, char *bytes) {
                 exit(1);
             }
 
-            
-
             struct stat disk_stat;                          //Store various information about the disc
             fstat(copiedDiskFile, &disk_stat);
             char *copiedFile = mmap(NULL, fileSize, PROT_READ | PROT_WRITE, MAP_SHARED, copiedDiskFile, 0);
@@ -83,23 +77,34 @@ int copyFile(char *fileName, char *bytes) {
                 exit(1);
             }
 
-            int firstLogicalCluster = (bytes[i + 27] << 8) | bytes[i + 26];
+            int firstLogicalCluster = ((bytes[i + 27] << 8) & 0xFF) | (bytes[i + 26] & 0xFF);
             int entry = firstLogicalCluster;
+            printf("Starting cluster %d\n", entry);
+            fflush(stdout);
 
             do {
+                printf("Starting %d\n", copiedBytes);
+                fflush(stdout);
                 if(copiedBytes == 0) {
                     entry = firstLogicalCluster;
                 } else {
                     if (entry % 2 == 0) {                               //If even
-                        int lowBits = bytes[bytesPerSector + (3 * entry / 2)];
+                        int lowBits = bytes[bytesPerSector + (3 * entry / 2)] & 0xFF;
                         int highBits = bytes[bytesPerSector + 1 + (3 * entry / 2)] & 0x0F;
                         entry = ((highBits << 8) | lowBits);
+                        printf("Even\n");
+                        fflush(stdout);
                     } else {                                        //If odd
                         int lowBits = bytes[bytesPerSector + (int)(3 * entry / 2)] & 0xF0;
-                        int highBits = bytes[bytesPerSector + (int)(1 + (3 * entry / 2))];
+                        int highBits = bytes[bytesPerSector + (int)(1 + (3 * entry / 2))] & 0xFF;
                         entry = ((highBits << 4) | (lowBits >> 4));
+                        printf("Odd\n");
+                        fflush(stdout);
                     }
                 }
+                printf("Cluster %d\n", entry);
+            fflush(stdout);
+
                 
                 int physicalCluster = bytesPerSector * (31 + entry);
 
@@ -120,6 +125,8 @@ int copyFile(char *fileName, char *bytes) {
                 printf("%d\n", copiedBytes);
                 fflush(stdout);
             } while((entry != 0xFFF) && (copiedBytes != fileSize));
+            printf("%d\n", copiedBytes);
+            fflush(stdout);
             munmap(copiedFile, disk_stat.st_size);
             close(copiedDiskFile);   
         } 

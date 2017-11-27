@@ -65,12 +65,12 @@ int free_disk_space(char *bytes) {
     int i = 0;
     for (i = 2; i <= totalSectorCount - 32; i++) {      //For each sector
         if (i % 2 == 0) {                               //If even
-            lowBits = bytes[bytesPerSector + (3 * i / 2)];
+            lowBits = bytes[bytesPerSector + (3 * i / 2)] & 0xFF;
             highBits = bytes[bytesPerSector + 1 + (3 * i / 2)] & 0x0F;
             entry = ((highBits << 8) | lowBits);
         } else {                                        //If odd
             lowBits = bytes[bytesPerSector + (int)(3 * i / 2)] & 0xF0;
-            highBits = bytes[bytesPerSector + (int)(1 + (3 * i / 2))];
+            highBits = bytes[bytesPerSector + (int)(1 + (3 * i / 2))] & 0xFF;
             entry = ((highBits << 4) | (lowBits >> 4));
         }
         if(entry == 0x000) ++freeDiskSpace;             //If the entry

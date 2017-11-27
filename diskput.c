@@ -30,12 +30,12 @@ int free_disk_space(char *bytes) {
     int i = 0;
     for (i = 2; i <= totalSectorCount - 32; i++) {      //For each sector
         if (i % 2 == 0) {                               //If even
-            lowBits = bytes[bytesPerSector + (3 * i / 2)];
+            lowBits = bytes[bytesPerSector + (3 * i / 2)] & 0xFF;
             highBits = bytes[bytesPerSector + 1 + (3 * i / 2)] & 0x0F;
             entry = ((highBits << 8) | lowBits);
         } else {                                        //If odd
             lowBits = bytes[bytesPerSector + (int)(3 * i / 2)] & 0xF0;
-            highBits = bytes[bytesPerSector + (int)(1 + (3 * i / 2))];
+            highBits = bytes[bytesPerSector + (int)(1 + (3 * i / 2))] & 0xFF;
             entry = ((highBits << 4) | (lowBits >> 4));
         }
         if(entry == 0x000) ++freeDiskSpace;             //If the entry
@@ -80,12 +80,12 @@ int freeFatEntry(char *bytes) {
     int i = 0;
     for (i = 2; i <= totalSectorCount - 32; i++) {      //For each sector
         if (i % 2 == 0) {                               //If even
-            int lowBits = bytes[bytesPerSector + (3 * i / 2)];
+            int lowBits = bytes[bytesPerSector + (3 * i / 2)] & 0xFF;
             int highBits = bytes[bytesPerSector + 1 + (3 * i / 2)] & 0x0F;
             entry = ((highBits << 8) | lowBits);
         } else {                                        //If odd
             int lowBits = bytes[bytesPerSector + (int)(3 * i / 2)] & 0xF0;
-            int highBits = bytes[bytesPerSector + (int)(1 + (3 * i / 2))];
+            int highBits = bytes[bytesPerSector + (int)(1 + (3 * i / 2))] & 0xFF;
             entry = ((highBits << 4) | (lowBits >> 4));
         }
         if(entry == 0x000) return i;
@@ -108,33 +108,27 @@ int createRootFile(char *bytes, char *fileName, int fileSize, int entry) {
         }
     }
 
-    printf("Choosing entry %d\n", i);
+    printf("Choosing entry %d\n", entry);
 
 
     printf("Setting first logical cluster\n");
     fflush(stdout);
-    int something = (entry & 0xFF00) >> 8;
-    printf("Done testing\n");
-    fflush(stdout);
-    // bytes[i + 27] = (entry & 0xFF00) >> 8;
-    // bytes[i + 26] = (entry & 0x00FF);
+    bytes[i + 26] = entry & 0x00FF;
+    bytes[i + 27] = ((entry) & 0xFF00) >> 8;
+    
+    int firstLogicalCluster = ((bytes[i + 27] << 8) & 0xFF) | (bytes[i + 26] & 0xFF);
+    printf("first logical cluster  %d\n", firstLogicalCluster);
 
-	bytes[i + 26] = (entry - (bytes[i + 27] << 8)) & 0xFF;
-    bytes[i + 27] = (entry - bytes[i + 26]) >> 8;
     printf("Setting file name\n");
     fflush(stdout);
     int j = 0;
-    for(j = 0; j < 8; j++) {
+    for(j = 0; j < 20; j++) {
         if(fileName[j] == '.') {
-            printf("Printing ext name");
-            fflush(stdout);
             int k = 0;
             for(k = 0; k < 3; k++) bytes[i + k + 8] = fileName[j + k + 1];
             break;
         }
-        printf("Printing normal name");
-        fflush(stdout);
-        bytes[i + j] = fileName[j];
+        if(j < 8) bytes[i + j] = fileName[j];
     }
 
     printf("Setting file size\n");
@@ -152,9 +146,9 @@ int createRootFile(char *bytes, char *fileName, int fileSize, int entry) {
     fflush(stdout);
     time_t currentTime = time(NULL);
     struct tm *curTime = localtime(&currentTime);
-    bytes[i + 17] = (curTime->tm_year) << 1;
-    bytes[i + 17] = ((curTime->tm_mon & 0b00001000) >> 3) | bytes[i + 17];
-    bytes[i + 16] = ((curTime->tm_mon & 0b00000111) << 5);
+    bytes[i + 17] = (((curTime->tm_year - 80) & 0b01111111) << 1);
+    bytes[i + 17] = (((curTime->tm_mon + 1) & 0b00001000) >> 3) | bytes[i + 17];
+    bytes[i + 16] = (((curTime->tm_mon + 1) & 0b00000111) << 5);
     bytes[i + 16] = ((curTime->tm_mday & 0b00011111)) | bytes[i + 16];
     bytes[i + 15] = ((curTime->tm_hour & 0b00011111) << 3);
     bytes[i + 15] = ((curTime->tm_min & 0b00111000) >> 3) | bytes[i + 15];
