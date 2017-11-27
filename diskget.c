@@ -34,7 +34,7 @@ int copyFile(char *fileName, char *bytes) {
             printf("%s\n", rootFile);
             fflush(stdout);
         }
-        for(j = 0; j < 8; j++) {
+        for(j = 0; j < 3; j++) {
             if (bytes[i + j + 8] == ' ') break;
             if (j == 0) strcat(rootFile, ".");
             fileExt[j] = bytes[i + j + 8];
@@ -129,7 +129,7 @@ int copyFile(char *fileName, char *bytes) {
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {                        //Only run if 2 additional argument is passed in
-        printf("ERROR: Incorrect Usage.\nUSAGE:\n\t./diskinfo [file system] [file name]\n");
+        printf("ERROR: Incorrect Usage.\nUSAGE:\n\t./diskget [file system] [file name]\n");
         exit(1);
     }
 
