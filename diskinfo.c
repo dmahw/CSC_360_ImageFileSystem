@@ -5,7 +5,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-unsigned int BUFFER_SIZE = 1024;
+unsigned int BUFFER_SIZE = 1024;                        //Global Variables
+unsigned int bytesPerSector = 0;
+unsigned int totalSectorCount = 0;
 
 char *OS_Name(char *bytes) {
     char *OSName = malloc(sizeof(BUFFER_SIZE));         //Allocate memory for OS Name
@@ -17,8 +19,8 @@ char *OS_Name(char *bytes) {
 char *volume_label(char *bytes) {
     char *volLabel = malloc(sizeof(BUFFER_SIZE));       //Allocate memory for disk label
     int i = 0;
-    int rootDir = 512 * 19;                             //Location to the root directory
-    int dataDir = 512 * 33;                             //Location to the data directory
+    int rootDir = bytesPerSector * 19;                  //Location to the root directory
+    int dataDir = bytesPerSector * 33;                  //Location to the data directory
     int offset = 0;                                     //Offset to check next entry
                                                         //For every entry in root directory
     for(offset = 0; (rootDir + offset) < dataDir; offset += 32) {
@@ -35,14 +37,6 @@ char *volume_label(char *bytes) {
 int total_disk_space(char *bytes) {
     int totalDiskSpace = 0;                             
 
-    int lowBits = bytes[19];                            //First 8 bits
-    int highBits = bytes[20];                           //Second 8 bits
-    int totalSectorCount = ((highBits << 8) | lowBits); //Concatanate the high and low bits
-
-    lowBits = bytes[11];                                //First 8 bits
-    highBits = bytes[12];                               //Second 8 bits
-    int bytesPerSector = ((highBits << 8) | lowBits);   //Concatanate the high and low bits
-
     totalDiskSpace = totalSectorCount * bytesPerSector; //Compute total disk space using bytes per sector and sectors
 
     return totalDiskSpace;
@@ -50,30 +44,20 @@ int total_disk_space(char *bytes) {
 
 int free_disk_space(char *bytes) {
     int freeDiskSpace;
-    int highBits;
-    int lowBits;
     int entry;
-
-    lowBits = bytes[11];                                //First 8 bits
-    highBits = bytes[12];                               //Second 8 bits
-    int bytesPerSector = ((highBits << 8) | lowBits);   //Concatanate the high and low bits
-
-    lowBits = bytes[19];                                //First 8 bits
-    highBits = bytes[20];                               //Second 8 bits
-    int totalSectorCount = ((highBits << 8) | lowBits); //Concatanate the high and low bits
 
     int i = 0;
     for (i = 2; i <= totalSectorCount - 32; i++) {      //For each sector
         if (i % 2 == 0) {                               //If even
-            lowBits = bytes[bytesPerSector + (3 * i / 2)] & 0xFF;
-            highBits = bytes[bytesPerSector + 1 + (3 * i / 2)] & 0x0F;
+            int lowBits = bytes[bytesPerSector + (3 * i / 2)] & 0xFF;               //Use the 8 bits
+            int highBits = bytes[bytesPerSector + 1 + (3 * i / 2)] & 0x0F;          //Use the 4 bits
             entry = ((highBits << 8) | lowBits);
         } else {                                        //If odd
-            lowBits = bytes[bytesPerSector + (int)(3 * i / 2)] & 0xF0;
-            highBits = bytes[bytesPerSector + (int)(1 + (3 * i / 2))] & 0xFF;
+            int lowBits = bytes[bytesPerSector + (3 * i / 2)] & 0xF0;          //Use the 4 bits
+            int highBits = bytes[bytesPerSector + (1 + (3 * i / 2))] & 0xFF;   //Use the 8 bits
             entry = ((highBits << 4) | (lowBits >> 4));
         }
-        if(entry == 0x000) ++freeDiskSpace;             //If the entry
+        if(entry == 0) ++freeDiskSpace;                 //If the entry is empty
     }
 
     freeDiskSpace = freeDiskSpace * bytesPerSector;
@@ -82,11 +66,11 @@ int free_disk_space(char *bytes) {
 }
 
 int num_files_root_dir(char *bytes) {
-    int numFilesRootDir = 0;        //Counter
-    int rootDir = 512 * 19;         //Root directory offset                    
-    int dataDir = 512 * 33;         //Data directory offset
-    int offset = 0;                 //Offset
-                                    //For each entry
+    int numFilesRootDir = 0;                //Counter
+    int rootDir = bytesPerSector * 19;      //Root directory offset                    
+    int dataDir = bytesPerSector * 33;      //Data directory offset
+    int offset = 0;                         //Offset
+                                            //For each entry
     for(offset = 0; (rootDir + offset) < dataDir; offset += 32) {
         if (bytes[rootDir + offset] == 0x00) break;         //Check if all directories are free
         if (bytes[rootDir + offset] == 0xE5) continue;      //Check current directory if free
@@ -99,7 +83,7 @@ int num_files_root_dir(char *bytes) {
 }
 
 int num_FAT_cop(char *bytes) {
-    int numFatCop = bytes[16];  //Get the number of FATs from boot sector
+    int numFatCop = bytes[16];                      //Get the number of FATs from boot sector
     return numFatCop;
 }
 
@@ -117,20 +101,11 @@ int main(int argc, char *argv[]) {
     }
 
     char *diskImage = argv[1];              //Store disk image name
-
     int disk = open(diskImage, O_RDONLY);   //Open disk
     if (disk == -1) {
         printf("ERROR: Failed to read %s\n", diskImage);
         exit(1);
     }
-
-    char *OSName = malloc(sizeof(BUFFER_SIZE));     //Allocating memory for variables
-    char *volLabel = malloc(sizeof(BUFFER_SIZE));   
-    int totalDiskSpace = 0;
-    int freeDiskSpace = 0;
-    int numFilesRootDir = 0;
-    int numFATCop = 0;
-    int sectPerFAT = 0;
     
     struct stat disk_stat;                          //Store various information about the disc
     fstat(disk, &disk_stat);                        //in a struct
@@ -139,6 +114,22 @@ int main(int argc, char *argv[]) {
         printf("ERROR: Failed to retrieve data from %s\n", diskImage);
         exit(1);
     }
+                                                    //Calculate bytesPerSector
+    int lowBits = bytes[11];                            //First 8 bits
+    int highBits = bytes[12];                           //Second 8 bits
+    bytesPerSector = ((highBits << 8) | lowBits);       //Concatanate the high and low bits
+                                                    //Calculate the total number of sectors
+    lowBits = bytes[19];                                //First 8 bits
+    highBits = bytes[20];                               //Second 8 bits
+    totalSectorCount = ((highBits << 8) | lowBits);     //Concatanate the high and low bits
+
+    char *OSName = malloc(sizeof(BUFFER_SIZE));         //Allocating memory for variables
+    char *volLabel = malloc(sizeof(BUFFER_SIZE));   
+    int totalDiskSpace = 0;
+    int freeDiskSpace = 0;
+    int numFilesRootDir = 0;
+    int numFATCop = 0;
+    int sectPerFAT = 0;
 
     OSName = OS_Name(bytes);                        //Get os name
     volLabel = volume_label(bytes);                 //Get volume label
