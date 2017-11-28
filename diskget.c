@@ -144,5 +144,8 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    munmap(bytes, disk_stat.st_size);
+    close(disk);
+
     return 0;
 }

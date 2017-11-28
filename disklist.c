@@ -79,6 +79,8 @@ int main(int argc, char *argv[]) {
         
         printf("%c %10d %20s %02d/%02d/%d %02d:%02d\n", type, fileSize, fileName, month, day, year, hour, minute);  //Print statement
     }       
+    munmap(bytes, disk_stat.st_size);
+    close(disk);
 
     return 0;
 }

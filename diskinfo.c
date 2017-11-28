@@ -152,5 +152,7 @@ int main(int argc, char *argv[]) {
     printf("Number of FAT copies: %d\n", numFATCop);
     printf("Sectors per FAT: %d\n", sectPerFAT);
 
+    munmap(bytes, disk_stat.st_size);
+    close(disk);
     return 0;
 }

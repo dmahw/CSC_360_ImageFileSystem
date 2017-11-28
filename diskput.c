@@ -251,5 +251,9 @@ int main(int argc, char *argv[]) {
         printf("SUCCESS: Created new file %s\n", fileName);     //SUCCESS
     }
 
+    munmap(file, file_stat.st_size);
+    munmap(bytes, disk_stat.st_size);
+    close(diskFile);
+    close(disk);
     return 0;
 }
