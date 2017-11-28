@@ -224,8 +224,8 @@ int main(int argc, char *argv[]) {
     struct stat file_stat;                      //Retrieve file information
     fstat(diskFile, &file_stat);
     char *file = mmap(NULL, file_stat.st_size, PROT_READ, MAP_SHARED, diskFile, 0);
-    if(bytes == "-1") {
-        printf("ERROR: Failed to retrieve data from %s\n", file);
+    if(file == "-1") {
+        printf("ERROR: Failed to retrieve data from %s\n", fileName);
         exit(1);
     }
     int fileSize = file_stat.st_size;           //Set the fileSize to the file size of the copying file
